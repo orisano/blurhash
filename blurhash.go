@@ -34,17 +34,38 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	piH := math.Pi / float64(imgH)
 
 	xCos := make([]float64, w)
+	xSin := make([]float64, w)
+	xRotCos := make([]float64, w)
+	xRotSin := make([]float64, w)
+	for j := 0; j < w; j++ {
+		xRotSin[j], xRotCos[j] = math.Sincos(piW * float64(j))
+	}
+
 	yCos := make([]float64, h)
+	ySin := make([]float64, h)
+	yRotCos := make([]float64, h)
+	yRotSin := make([]float64, h)
+	for i := 0; i < h; i++ {
+		yRotSin[i], yRotCos[i] = math.Sincos(piH * float64(i))
+	}
 
 	fastAt := fastAccessor(img)
 
 	for y := 0; y < imgH; y++ {
 		for i := range yCos {
-			yCos[i] = math.Cos(piH * float64(i*y))
+			if i == 0 || y == 0 {
+				ySin[i], yCos[i] = 0, 1
+			} else {
+				ySin[i], yCos[i] = rotate(ySin[i], yCos[i], yRotSin[i], yRotCos[i])
+			}
 		}
 		for x := 0; x < imgW; x++ {
 			for j := range xCos {
-				xCos[j] = math.Cos(piW * float64(j*x))
+				if x == 0 || j == 0 {
+					xSin[j], xCos[j] = 0, 1
+				} else {
+					xSin[j], xCos[j] = rotate(xSin[j], xCos[j], xRotSin[j], xRotCos[j])
+				}
 			}
 			pR, pG, pB, _ := fastAt(x, y)
 			r := sRGB((pR >> 8) & 0xff).linear()
@@ -197,4 +218,8 @@ func fastAccessor(img image.Image) func(x, y int) (r, g, b, a uint32) {
 			return img.At(x, y).RGBA()
 		}
 	}
+}
+
+func rotate(sinA, cosA, sinB, cosB float64) (float64, float64) {
+	return sinA*cosB + cosA*sinB, cosA*cosB - sinA*sinB
 }
