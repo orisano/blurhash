@@ -1,0 +1,5 @@
+github.com/bbrks/go-blurhash v1.1.1 h1:uoXOxRPDca9zHYabUTwvS4KnY++KKUbwFo+Yxb8ME4M=
+github.com/bbrks/go-blurhash v1.1.1/go.mod h1:lkAsdyXp+EhARcUo85yS2G1o+Sh43I2ebF5togC4bAY=
+github.com/buckket/go-blurhash v1.1.0 h1:X5M6r0LIvwdvKiUtiNcRL2YlmOfMzYobI3VCKCZc9Do=
+github.com/buckket/go-blurhash v1.1.0/go.mod h1:aT2iqo5W9vu9GpyoLErKfTHwgODsZp3bQfXjXJUxNb8=
+github.com/matryer/is v1.2.0/go.mod h1:2fLPjFQM9rhQ15aVEtbuwhJinnOqrmgXPNdZsdwlWXA=
