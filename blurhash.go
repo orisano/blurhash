@@ -24,7 +24,7 @@ func init() {
 }
 
 func Append(dst []byte, img image.Image, w, h int) []byte {
-	factors := make([]factor, 81)[:0]
+	factors := make([]factor, 81)[:w*h]
 
 	bounds := img.Bounds()
 	imgW := bounds.Dx()
@@ -33,34 +33,31 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	piW := math.Pi / float64(imgW)
 	piH := math.Pi / float64(imgH)
 
-	xCos := make([]float64, imgW)
-	yCos := make([]float64, imgH)
+	xCos := make([]float64, w)
+	yCos := make([]float64, h)
 
 	fastAt := fastAccessor(img)
 
-	for i := 0; i < h; i++ {
-		for y := range yCos {
-			yCos[y] = math.Cos(piH * float64(i*y))
+	for y := 0; y < imgH; y++ {
+		for i := range yCos {
+			yCos[i] = math.Cos(piH * float64(i*y))
 		}
-		for j := 0; j < w; j++ {
-			for x := range xCos {
-				xCos[x] = math.Cos(piW * float64(j*x))
+		for x := 0; x < imgW; x++ {
+			for j := range xCos {
+				xCos[j] = math.Cos(piW * float64(j*x))
 			}
-			var r, g, b float64
-			for y := 0; y < imgH; y++ {
-				for x := 0; x < imgW; x++ {
-					basis := yCos[y] * xCos[x]
-					pR, pG, pB, _ := fastAt(x, y)
-					r += basis * sRGB((pR>>8)&0xff).linear()
-					g += basis * sRGB((pG>>8)&0xff).linear()
-					b += basis * sRGB((pB>>8)&0xff).linear()
+			pR, pG, pB, _ := fastAt(x, y)
+			r := sRGB((pR >> 8) & 0xff).linear()
+			g := sRGB((pG >> 8) & 0xff).linear()
+			b := sRGB((pB >> 8) & 0xff).linear()
+			for i := 0; i < h; i++ {
+				for j := 0; j < w; j++ {
+					basis := yCos[i] * xCos[j]
+					factors[i*w+j].r += basis * r
+					factors[i*w+j].g += basis * g
+					factors[i*w+j].b += basis * b
 				}
 			}
-			factors = append(factors, factor{
-				r: r,
-				g: g,
-				b: b,
-			})
 		}
 	}
 
