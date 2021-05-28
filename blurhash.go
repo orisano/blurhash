@@ -33,12 +33,21 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	piW := math.Pi / float64(imgW)
 	piH := math.Pi / float64(imgH)
 
+	xCos := make([]float64, imgW)
+	yCos := make([]float64, imgH)
+
 	for i := 0; i < h; i++ {
+		for y := range yCos {
+			yCos[y] = math.Cos(piH * float64(i*y))
+		}
 		for j := 0; j < w; j++ {
+			for x := range xCos {
+				xCos[x] = math.Cos(piW * float64(j*x))
+			}
 			var r, g, b float64
 			for y := 0; y < imgH; y++ {
 				for x := 0; x < imgW; x++ {
-					basis := math.Cos(piW*float64(j*x)) * math.Cos(piH*float64(i*y))
+					basis := yCos[y] * xCos[x]
 					pR, pG, pB, _ := img.At(x, y).RGBA()
 					r += basis * sRGB((pR>>8)&0xff).linear()
 					g += basis * sRGB((pG>>8)&0xff).linear()
