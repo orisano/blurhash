@@ -33,18 +33,18 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	piW := math.Pi / float64(imgW)
 	piH := math.Pi / float64(imgH)
 
-	xCos := make([]float64, w)
-	xSin := make([]float64, w)
-	xRotCos := make([]float64, w)
-	xRotSin := make([]float64, w)
+	xCos := make([]float64, 9)[:w]
+	xSin := make([]float64, 9)[:w]
+	xRotCos := make([]float64, 9)[:w]
+	xRotSin := make([]float64, 9)[:w]
 	for j := 0; j < w; j++ {
 		xRotSin[j], xRotCos[j] = math.Sincos(piW * float64(j))
 	}
 
-	yCos := make([]float64, h)
-	ySin := make([]float64, h)
-	yRotCos := make([]float64, h)
-	yRotSin := make([]float64, h)
+	yCos := make([]float64, 9)[:h]
+	ySin := make([]float64, 9)[:h]
+	yRotCos := make([]float64, 9)[:h]
+	yRotSin := make([]float64, 9)[:h]
 	for i := 0; i < h; i++ {
 		yRotSin[i], yRotCos[i] = math.Sincos(piH * float64(i))
 	}
