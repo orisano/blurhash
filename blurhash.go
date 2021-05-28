@@ -36,6 +36,8 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	xCos := make([]float64, imgW)
 	yCos := make([]float64, imgH)
 
+	fastAt := fastAccessor(img)
+
 	for i := 0; i < h; i++ {
 		for y := range yCos {
 			yCos[y] = math.Cos(piH * float64(i*y))
@@ -48,7 +50,7 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 			for y := 0; y < imgH; y++ {
 				for x := 0; x < imgW; x++ {
 					basis := yCos[y] * xCos[x]
-					pR, pG, pB, _ := img.At(x, y).RGBA()
+					pR, pG, pB, _ := fastAt(x, y)
 					r += basis * sRGB((pR>>8)&0xff).linear()
 					g += basis * sRGB((pG>>8)&0xff).linear()
 					b += basis * sRGB((pB>>8)&0xff).linear()
@@ -181,4 +183,21 @@ func append2Base83(dst []byte, v int) []byte {
 
 func append4Base83(dst []byte, v int) []byte {
 	return append2Base83(append2Base83(dst, v/(83*83)), v)
+}
+
+func fastAccessor(img image.Image) func(x, y int) (r, g, b, a uint32) {
+	switch img := img.(type) {
+	case *image.YCbCr:
+		return func(x, y int) (r, g, b, a uint32) {
+			return img.YCbCrAt(x, y).RGBA()
+		}
+	case *image.NRGBA:
+		return func(x, y int) (r, g, b, a uint32) {
+			return img.NRGBAAt(x, y).RGBA()
+		}
+	default:
+		return func(x, y int) (r, g, b, a uint32) {
+			return img.At(x, y).RGBA()
+		}
+	}
 }
