@@ -19,6 +19,10 @@ import (
 	"math"
 )
 
+func init() {
+	buildToLinearTable()
+}
+
 func Append(dst []byte, img image.Image, w, h int) []byte {
 	factors := make([]factor, 81)[:0]
 
@@ -118,15 +122,23 @@ func encodeAC(ac factor, max float64) int {
 	return quantR*(19*19) + quantG*19 + quantB
 }
 
+var toLinearTable [256]float64
+
+func buildToLinearTable() {
+	for i := 0; i < 256; i++ {
+		v := float64(i) / 255
+		if v <= 0.04045 {
+			toLinearTable[i] = v / 12.92
+		} else {
+			toLinearTable[i] = math.Pow((v+0.055)/1.055, 2.4)
+		}
+	}
+}
+
 type sRGB uint8
 
 func (value sRGB) linear() float64 {
-	v := float64(value) / 255
-	if v <= 0.04045 {
-		return v / 12.92
-	} else {
-		return math.Pow((v+0.055)/1.055, 2.4)
-	}
+	return toLinearTable[value]
 }
 
 type linear float64
