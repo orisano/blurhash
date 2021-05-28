@@ -16,16 +16,11 @@ package blurhash
 
 import (
 	"image"
-	"image/color"
 	"math"
 )
 
-func init() {
-	buildLinearTable()
-}
-
 func Append(dst []byte, img image.Image, w, h int) []byte {
-	factors := make([]factor, 81)[:w*h]
+	factors := make([]factor, 81)[:0]
 
 	bounds := img.Bounds()
 	imgW := bounds.Dx()
@@ -34,53 +29,23 @@ func Append(dst []byte, img image.Image, w, h int) []byte {
 	piW := math.Pi / float64(imgW)
 	piH := math.Pi / float64(imgH)
 
-	yCos := make([]float64, 9)[:h]
-	ySin := make([]float64, 9)[:h]
-	yRotCos := make([]float64, 9)[:h]
-	yRotSin := make([]float64, 9)[:h]
 	for i := 0; i < h; i++ {
-		yRotSin[i], yRotCos[i] = math.Sincos(piH * float64(i))
-	}
-
-	xCos := make([]float64, 9)[:w]
-	xSin := make([]float64, 9)[:w]
-	xRotCos := make([]float64, 9)[:w]
-	xRotSin := make([]float64, 9)[:w]
-	for j := 0; j < w; j++ {
-		xRotSin[j], xRotCos[j] = math.Sincos(piW * float64(j))
-	}
-
-	fastAt := fastAccessor(img)
-	for y := 0; y < imgH; y++ {
-		for i := range yCos {
-			if y == 0 || i == 0 {
-				ySin[i], yCos[i] = 0, 1
-			} else {
-				ySin[i], yCos[i] = rotate(ySin[i], yCos[i], yRotSin[i], yRotCos[i])
-			}
-		}
-		for x := 0; x < imgW; x++ {
-			for j := range xCos {
-				if x == 0 || j == 0 {
-					xSin[j], xCos[j] = 0, 1
-				} else {
-					xSin[j], xCos[j] = rotate(xSin[j], xCos[j], xRotSin[j], xRotCos[j])
+		for j := 0; j < w; j++ {
+			var r, g, b float64
+			for y := 0; y < imgH; y++ {
+				for x := 0; x < imgW; x++ {
+					basis := math.Cos(piW*float64(j*x)) * math.Cos(piH*float64(i*y))
+					pR, pG, pB, _ := img.At(x, y).RGBA()
+					r += basis * sRGB((pR>>8)&0xff).linear()
+					g += basis * sRGB((pG>>8)&0xff).linear()
+					b += basis * sRGB((pB>>8)&0xff).linear()
 				}
 			}
-
-			pR, pG, pB, _ := fastAt(x, y)
-			r := sRGB((pR >> 8) & 0xff).linear()
-			g := sRGB((pG >> 8) & 0xff).linear()
-			b := sRGB((pB >> 8) & 0xff).linear()
-
-			for i := 0; i < h; i++ {
-				for j := 0; j < w; j++ {
-					basis := yCos[i] * xCos[j]
-					factors[i*w+j].r += basis * r
-					factors[i*w+j].g += basis * g
-					factors[i*w+j].b += basis * b
-				}
-			}
+			factors = append(factors, factor{
+				r: r,
+				g: g,
+				b: b,
+			})
 		}
 	}
 
@@ -153,23 +118,15 @@ func encodeAC(ac factor, max float64) int {
 	return quantR*(19*19) + quantG*19 + quantB
 }
 
-var linearTable [256]float64
-
-func buildLinearTable() {
-	for i := 0; i < 256; i++ {
-		v := float64(i) / 255
-		if v <= 0.04045 {
-			linearTable[i] = v / 12.92
-		} else {
-			linearTable[i] = math.Pow((v+0.055)/1.055, 2.4)
-		}
-	}
-}
-
 type sRGB uint8
 
 func (value sRGB) linear() float64 {
-	return linearTable[value]
+	v := float64(value) / 255
+	if v <= 0.04045 {
+		return v / 12.92
+	} else {
+		return math.Pow((v+0.055)/1.055, 2.4)
+	}
 }
 
 type linear float64
@@ -203,42 +160,4 @@ func append2Base83(dst []byte, v int) []byte {
 
 func append4Base83(dst []byte, v int) []byte {
 	return append2Base83(append2Base83(dst, v/(83*83)), v)
-}
-
-func fastAccessor(img image.Image) func(x, y int) (r, b, g, a uint32) {
-	switch img := img.(type) {
-	case *image.YCbCr:
-		var yShift, xShift uint8
-		switch img.SubsampleRatio {
-		case image.YCbCrSubsampleRatio422:
-			xShift = 1
-		case image.YCbCrSubsampleRatio420:
-			yShift, xShift = 1, 1
-		case image.YCbCrSubsampleRatio440:
-			yShift = 1
-		case image.YCbCrSubsampleRatio411:
-			xShift = 2
-		case image.YCbCrSubsampleRatio410:
-			yShift, xShift = 1, 2
-		}
-		return func(x, y int) (r, b, g, a uint32) {
-			yi := img.YOffset(x, y)
-			ci := ((y>>yShift)-(img.Rect.Min.Y>>yShift))*img.CStride + ((x >> xShift) - (img.Rect.Min.X >> xShift))
-			return color.YCbCr{Y: img.Y[yi], Cb: img.Cb[ci], Cr: img.Cr[ci]}.RGBA()
-		}
-	case *image.NRGBA:
-		return func(x, y int) (r, b, g, a uint32) {
-			i := img.PixOffset(x, y)
-			s := img.Pix[i : i+4 : i+4]
-			return color.NRGBA{R: s[0], G: s[1], B: s[2], A: s[3]}.RGBA()
-		}
-	default:
-		return func(x, y int) (r, b, g, a uint32) {
-			return img.At(x, y).RGBA()
-		}
-	}
-}
-
-func rotate(sinA, cosA, sinB, cosB float64) (float64, float64) {
-	return sinA*cosB + cosA*sinB, cosA*cosB - sinA*sinB
 }
