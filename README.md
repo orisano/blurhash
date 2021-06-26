@@ -6,4 +6,4 @@ A pure Go implemetation of [blurhash](https://github.com/woltapp/blurhash).
 Nao Yonashiro (@orisano)
 
 ## License
-Apache 2
+Apache License 2.0
